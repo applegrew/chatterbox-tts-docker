@@ -1,0 +1,5 @@
+numpy==1.25
+chatterbox-tts
+torch
+flask
+flask-cors

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatterbox TTS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, textarea, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-container input[type="range"] {
+            flex-grow: 1;
+        }
+        .slider-value {
+            width: 40px;
+            text-align: center;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .toggle-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-left: 5px;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+            width: 200px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .output-container {
+            margin-top: 20px;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status.processing {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chatterbox TTS</h1>
+    <div class="container">
+        <form id="ttsForm">
+            <div class="form-group">
+                <label for="voice">Voice:</label>
+                <select id="voice" name="voice">
+                    <!-- Voice options will be populated dynamically -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="text">Say Text:</label>
+                <textarea id="text" name="text" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="cfg">CFG:</label>
+                <div class="slider-container">
+                    <span>0</span>
+                    <input type="range" id="cfg" name="cfg" min="0" max="1" step="0.1" value="0.4">
+                    <span>1</span>
+                    <span class="slider-value" id="cfg-value">0.4</span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="exaggeration">Exaggeration:</label>
+                <div class="slider-container">
+                    <span>0</span>
+                    <input type="range" id="exaggeration" name="exaggeration" min="0" max="2" step="0.1" value="0.3">
+                    <span>2</span>
+                    <span class="slider-value" id="exaggeration-value">0.3</span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="temperature">Temperature:</label>
+                <div class="slider-container">
+                    <span>0</span>
+                    <input type="range" id="temperature" name="temperature" min="0" max="1" step="0.1" value="0.5">
+                    <span>1</span>
+                    <span class="slider-value" id="temperature-value">0.5</span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="seed">Random Seed:</label>
+                <input type="number" id="seed" name="seed" value="0">
+            </div>
+            
+            <div class="form-group">
+                <label>Process?</label>
+                <div class="toggle-container">
+                    <div class="toggle-labels">
+                        <span>No</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="process" name="process">
+                        <span class="slider"></span>
+                    </label>
+                    <div class="toggle-labels">
+                        <span>Yes</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Generate Audio button removed as per requirement -->
+        </form>
+    </div>
+    
+    <div class="container output-container">
+        <h2>Output</h2>
+        <div id="status" class="status">Processing disabled</div>
+        <div id="audio-container"></div>
+    </div>
+
+    <script>
+        // Function to generate audio
+        async function generateAudio() {
+            const processEnabled = document.getElementById('process').checked;
+            if (!processEnabled) return;
+            
+            const formData = new FormData(document.getElementById('ttsForm'));
+            const statusDiv = document.getElementById('status');
+            const audioContainer = document.getElementById('audio-container');
+            
+            // Show processing status
+            statusDiv.textContent = 'Processing...';
+            statusDiv.className = 'status processing';
+            audioContainer.innerHTML = '';
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    statusDiv.textContent = 'Audio generated successfully!';
+                    statusDiv.className = 'status success';
+                    
+                    // Create audio element
+                    const audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = result.audio_url;
+                    audioContainer.appendChild(audio);
+                } else {
+                    statusDiv.textContent = `Error: ${result.error || 'Unknown error'}`;
+                    statusDiv.className = 'status error';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.className = 'status error';
+            }
+        }
+        
+        // Add debounce function to prevent too many requests
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+        
+        // Debounced version of generateAudio
+        const debouncedGenerateAudio = debounce(generateAudio, 500);
+        
+        // Update slider values display and trigger generation
+        document.getElementById('cfg').addEventListener('input', function() {
+            document.getElementById('cfg-value').textContent = this.value;
+            debouncedGenerateAudio();
+        });
+        document.getElementById('exaggeration').addEventListener('input', function() {
+            document.getElementById('exaggeration-value').textContent = this.value;
+            debouncedGenerateAudio();
+        });
+        document.getElementById('temperature').addEventListener('input', function() {
+            document.getElementById('temperature-value').textContent = this.value;
+            debouncedGenerateAudio();
+        });
+
+        // Fetch available voices when page loads
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/voices');
+                const voices = await response.json();
+                const voiceSelect = document.getElementById('voice');
+                
+                voices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.value = voice.name;
+                    option.textContent = voice.display_name;
+                    voiceSelect.appendChild(option);
+                });
+                
+                // Initial generation if process is enabled
+                if (document.getElementById('process').checked) {
+                    setTimeout(generateAudio, 1000); // Slight delay to ensure UI is ready
+                }
+            } catch (error) {
+                console.error('Error fetching voices:', error);
+                document.getElementById('status').textContent = 'Error loading voices';
+                document.getElementById('status').className = 'status error';
+            }
+        });
+
+        // Add event listeners to all form inputs
+        document.querySelectorAll('#ttsForm select, #ttsForm input, #ttsForm textarea').forEach(element => {
+            if (element.id !== 'process') { // Skip the process toggle itself
+                element.addEventListener('change', debouncedGenerateAudio);
+                if (element.tagName === 'TEXTAREA') {
+                    // For text area, also listen for keyup with a longer debounce
+                    element.addEventListener('keyup', debounce(generateAudio, 1000));
+                }
+            }
+        });
+        
+        // Special handler for the process toggle
+        document.getElementById('process').addEventListener('change', function() {
+            if (this.checked) {
+                // If toggled to Yes, generate audio immediately
+                generateAudio();
+            } else {
+                // If toggled to No, update status
+                document.getElementById('status').textContent = 'Processing disabled';
+                document.getElementById('status').className = 'status';
+            }
+        });
+        
+        // Prevent form submission as we're handling generation via events
+        document.getElementById('ttsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>
