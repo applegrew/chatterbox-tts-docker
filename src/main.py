@@ -7,7 +7,7 @@ from .setup_voices import setup_voices
 def parse_args():
     parser = argparse.ArgumentParser(description='Chatterbox TTS Web Server')
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to run the server on')
-    parser.add_argument('--port', type=int, default=8080, help='Port to run the server on')
+    parser.add_argument('--port', type=int, default=9080, help='Port to run the server on')
     parser.add_argument('--debug', action='store_true', help='Run in debug mode', default=os.getenv('DEBUG', False) == "yes")
     parser.add_argument('--skip-setup', action='store_true', help='Skip voice setup')
     return parser.parse_args()

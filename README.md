@@ -27,10 +27,10 @@ This project provides a web interface for the Chatterbox TTS (Text-to-Speech) sy
 2. Build and run using Docker Compose:
 
 ```bash
-docker-compose up --build
+docker compose up
 ```
 
-3. Access the web interface at http://localhost:8080
+3. Access the web interface at http://localhost:9080
 
 ### Manual Installation
 
@@ -47,7 +47,7 @@ pip install -r requirements.txt
 python -m src.main
 ```
 
-4. Access the web interface at http://localhost:8080
+4. Access the web interface at http://localhost:9080
 
 ## Usage
 
