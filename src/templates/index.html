@@ -221,10 +221,31 @@
     </div>
 
     <script>
+        // Track current audio request to prevent multiple players
+        let currentAudioRequest = null;
+        // Track current fetch controller for aborting requests
+        let currentController = null;
+        
         // Function to generate audio
         async function generateAudio() {
             const processEnabled = document.getElementById('process').checked;
             if (!processEnabled) return;
+            
+            // Cancel any previous request
+            if (currentAudioRequest) {
+                currentAudioRequest.cancelled = true;
+            }
+            
+            // Abort any in-progress fetch request
+            if (currentController) {
+                currentController.abort();
+            }
+            
+            // Create a new request tracker and abort controller
+            const thisRequest = { cancelled: false };
+            currentAudioRequest = thisRequest;
+            const controller = new AbortController();
+            currentController = controller;
             
             const formData = new FormData(document.getElementById('ttsForm'));
             const statusDiv = document.getElementById('status');
@@ -238,7 +259,8 @@
             try {
                 const response = await fetch('/generate', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
                 
                 if (!response.ok) {
@@ -247,23 +269,46 @@
                 
                 const result = await response.json();
                 
+                // If this request was cancelled, don't update the UI
+                if (thisRequest.cancelled) {
+                    return;
+                }
+                
                 if (result.success) {
                     statusDiv.textContent = 'Audio generated successfully!';
                     statusDiv.className = 'status success';
                     
-                    // Create audio element
+                    // Clear container and create audio element
+                    audioContainer.innerHTML = '';
                     const audio = document.createElement('audio');
                     audio.controls = true;
                     audio.src = result.audio_url;
                     audioContainer.appendChild(audio);
                 } else {
-                    statusDiv.textContent = `Error: ${result.error || 'Unknown error'}`;
-                    statusDiv.className = 'status error';
+                    // Only update if not cancelled
+                    if (!thisRequest.cancelled) {
+                        statusDiv.textContent = `Error: ${result.error || 'Unknown error'}`;
+                        statusDiv.className = 'status error';
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
-                statusDiv.textContent = `Error: ${error.message}`;
-                statusDiv.className = 'status error';
+                // Check if this was an abort error
+                if (error.name === 'AbortError') {
+                    console.log('Fetch request was aborted');
+                    return;
+                }
+                
+                // Only update if not cancelled
+                if (!thisRequest.cancelled) {
+                    statusDiv.textContent = `Error: ${error.message}`;
+                    statusDiv.className = 'status error';
+                }
+            }
+            
+            // Clear the controller reference if this is the current request
+            if (currentController === controller) {
+                currentController = null;
             }
         }
         
@@ -271,6 +316,17 @@
         function debounce(func, wait) {
             let timeout;
             return function(...args) {
+                // Cancel any previous request when debouncing
+                if (currentAudioRequest) {
+                    currentAudioRequest.cancelled = true;
+                }
+                
+                // Abort any in-progress fetch request
+                if (currentController) {
+                    currentController.abort();
+                    currentController = null;
+                }
+                
                 clearTimeout(timeout);
                 timeout = setTimeout(() => func.apply(this, args), wait);
             };
@@ -335,9 +391,19 @@
                 // If toggled to Yes, generate audio immediately
                 generateAudio();
             } else {
-                // If toggled to No, update status
+                // If toggled to No, cancel any in-progress generation and update status
+                if (currentAudioRequest) {
+                    currentAudioRequest.cancelled = true;
+                }
+                
+                if (currentController) {
+                    currentController.abort();
+                    currentController = null;
+                }
+                
                 document.getElementById('status').textContent = 'Processing disabled';
                 document.getElementById('status').className = 'status';
+                document.getElementById('audio-container').innerHTML = '';
             }
         });
         
