@@ -161,10 +161,18 @@ def generate_audio():
         
         # Validate input
         if not text:
-            return jsonify({'success': False, 'error': 'Text is required'})
+            return jsonify({
+                'success': False, 
+                'error_message': 'Text is required',
+                'audio_url': ''
+            })
         
         if not process:
-            return jsonify({'success': False, 'error': 'Processing is disabled'})
+            return jsonify({
+                'success': False, 
+                'error_message': 'Processing is disabled',
+                'audio_url': ''
+            })
         
         # Set device
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -205,9 +213,17 @@ def generate_audio():
                         lang = wav_files[0].split('-')[0]
                     print(f"Fallback voice: {os.path.basename(voice_path)}, Language: {lang or 'en'}")
                 else:
-                    return jsonify({'success': False, 'error': 'No voice files available'})
+                    return jsonify({
+                        'success': False, 
+                        'error_message': 'No voice files available',
+                        'audio_url': ''
+                    })
             else:
-                return jsonify({'success': False, 'error': 'No voices directory found'})
+                return jsonify({
+                    'success': False, 
+                    'error_message': 'No voices directory found',
+                    'audio_url': ''
+                })
         
         # Get model
         model = get_model(device=device, lang=lang or 'en')
@@ -253,20 +269,180 @@ def generate_audio():
         # Return success response with audio URL
         return jsonify({
             'success': True, 
+            'error_message': '',
             'audio_url': f'/audio/{filename}'
         })
         
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({
+            'success': False, 
+            'error_message': str(e),
+            'audio_url': ''
+        })
 
 @app.route('/audio/<filename>')
 def serve_audio(filename):
     """Serve generated audio files"""
     return send_from_directory(OUTPUT_DIR, filename)
 
-def run_server(host='0.0.0.0', port=8080, debug=False):
+@app.route('/api/generate', methods=['POST'])
+def api_generate_audio():
+    """REST API endpoint for generating audio from text using Chatterbox TTS
+    
+    Accepts JSON data in the request body with the following parameters:
+    - text: Text to convert to speech
+    - voice: Voice name to use
+    - cfg: Classifier-free guidance scale (0-1)
+    - exaggeration: Exaggeration level (0-2)
+    - temperature: Temperature for generation (0-1)
+    - seed: Random seed (0 for random)
+    - process: Whether to process the request (true/false)
+    
+    Returns JSON with:
+    - success: true/false
+    - error_message: Error message if success is false
+    - audio_url: URL to the generated audio file if success is true
+    """
+    try:
+        # Get JSON data
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False, 
+                'error_message': 'No JSON data provided'
+            })
+        
+        # Extract parameters
+        text = data.get('text', '').strip()
+        voice_name = data.get('voice', '')
+        cfg_scale = float(data.get('cfg', 0.4))
+        exaggeration = float(data.get('exaggeration', 0.3))
+        temperature = float(data.get('temperature', 0.5))
+        seed = int(data.get('seed', 0))
+        process = data.get('process', True)
+        
+        # Validate input
+        if not text:
+            return jsonify({
+                'success': False, 
+                'error_message': 'Text is required'
+            })
+        
+        if not process:
+            return jsonify({
+                'success': False, 
+                'error_message': 'Processing is disabled'
+            })
+        
+        # Set device
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.backends.mps.is_available():
+            device = "mps"
+        
+        print(f"API: Using device: {device}")
+        
+        # Get voice path and language
+        try:
+            result = voice_mapper.get_voice_path_and_lang(voice_name)
+            
+            # Handle different return types
+            if isinstance(result, tuple) and len(result) == 2:
+                voice_path, lang = result
+            elif isinstance(result, str):
+                voice_path = result
+                # Try to extract language from voice name
+                lang = None
+                if '-' in voice_name:
+                    lang = voice_name.split('-')[0]
+            else:
+                # Fallback
+                voice_path = str(result)
+                lang = None
+                
+            print(f"API: Using voice: {os.path.basename(voice_path)}, Language: {lang or 'en'}")
+        except Exception as e:
+            # Fallback to first available voice file
+            print(f"API: Error getting voice: {e}, falling back to default")
+            voices_dir = os.path.join(os.path.dirname(__file__), "voices")
+            if os.path.exists(voices_dir):
+                wav_files = [f for f in os.listdir(voices_dir) if f.endswith('.wav')]
+                if wav_files:
+                    voice_path = os.path.join(voices_dir, wav_files[0])
+                    lang = None
+                    if '-' in wav_files[0]:
+                        lang = wav_files[0].split('-')[0]
+                    print(f"API: Fallback voice: {os.path.basename(voice_path)}, Language: {lang or 'en'}")
+                else:
+                    return jsonify({
+                        'success': False, 
+                        'error_message': 'No voice files available'
+                    })
+            else:
+                return jsonify({
+                    'success': False, 
+                    'error_message': 'No voices directory found'
+                })
+        
+        # Get model
+        model = get_model(device=device, lang=lang or 'en')
+        
+        # Set seed if provided
+        if seed > 0:
+            torch.manual_seed(seed)
+        
+        # Generate audio
+        print(f"API: Generating audio with cfg_scale={cfg_scale}, exaggeration={exaggeration}, temperature={temperature}")
+        
+        extra_args = {}
+        if lang and lang != 'en':
+            extra_args['language_id'] = lang
+        
+        # Add exaggeration and temperature parameters if supported
+        if hasattr(model, 'generate_with_settings'):
+            wav = model.generate_with_settings(
+                text, 
+                audio_prompt_path=voice_path, 
+                cfg_weight=cfg_scale,
+                exaggeration=exaggeration,
+                temperature=temperature,
+                **extra_args
+            )
+        else:
+            # Fallback to standard generate method
+            wav = model.generate(
+                text, 
+                audio_prompt_path=voice_path, 
+                cfg_weight=cfg_scale,
+                **extra_args
+            )
+        
+        # Generate unique filename
+        filename = f"output_{uuid.uuid4().hex[:8]}.wav"
+        output_path = os.path.join(OUTPUT_DIR, filename)
+        
+        # Save audio file
+        ta.save(output_path, wav, model.sr)
+        print(f"API: Saved output to {output_path}")
+        
+        # Return success response with audio URL
+        return jsonify({
+            'success': True,
+            'error_message': '',
+            'audio_url': f'/audio/{filename}'
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False, 
+            'error_message': str(e),
+            'audio_url': ''
+        })
+
+def run_server(host='0.0.0.0', port=9080, debug=False):
     """Run the Flask server"""
     app.run(host=host, port=port, debug=debug)
 

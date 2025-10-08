@@ -287,7 +287,7 @@
                 } else {
                     // Only update if not cancelled
                     if (!thisRequest.cancelled) {
-                        statusDiv.textContent = `Error: ${result.error || 'Unknown error'}`;
+                        statusDiv.textContent = `Error: ${result.error_message || result.error || 'Unknown error'}`;
                         statusDiv.className = 'status error';
                     }
                 }

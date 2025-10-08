@@ -51,16 +51,59 @@ python -m src.main
 
 ## Usage
 
-1. Select a voice from the dropdown menu
-2. Enter the text you want to convert to speech
-3. Adjust parameters as needed:
-   - CFG: Controls how closely the output follows the voice characteristics (0-1)
-   - Exaggeration: Controls the expressiveness of the speech (0-2)
-   - Temperature: Controls the randomness/creativity in generation (0-1)
+### Web Interface
+
+1. Open the web interface in your browser at http://localhost:9080
+2. Select a voice from the dropdown menu
+3. Enter the text you want to convert to speech
+4. Adjust parameters as needed:
+   - CFG: Controls how closely the output follows the voice (0-1)
+   - Exaggeration: Controls the expressiveness of the voice (0-2)
+   - Temperature: Controls the randomness of the generation (0-1)
    - Random Seed: Set a specific seed for reproducible results (0 for random)
-4. Toggle the "Process" switch to enable/disable processing
-5. Click "Generate Audio" to create the speech
-6. The generated audio will appear in the Output section for playback
+5. Toggle the "Process?" switch to enable/disable automatic generation
+
+### REST API
+
+The server provides a REST API endpoint for programmatic access:
+
+**Endpoint:** `/api/generate`
+
+**Method:** POST
+
+**Content-Type:** application/json
+
+**Request Body:**
+
+```json
+{
+  "text": "Text to convert to speech",
+  "voice": "voice-name",
+  "cfg": 0.4,
+  "exaggeration": 0.3,
+  "temperature": 0.5,
+  "seed": 0,
+  "process": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "error_message": "",
+  "audio_url": "/audio/output_12345678.wav"
+}
+```
+
+**Example using curl:**
+
+```bash
+curl -X POST http://localhost:9080/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Hello world", "voice":"en-Carter"}'
+```
 
 ## Voice Files
 
